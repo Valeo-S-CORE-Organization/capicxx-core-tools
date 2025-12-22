@@ -18,12 +18,20 @@
 <unit id="javax.xml" version="1.3.4.v201005080400"/>
 <repository location="http://download.eclipse.org/tools/orbit/downloads/drops/R20170919201930/repository"/>
 </location>
-<location includeAllPlatforms="false" includeConfigurePhase="false" includeMode="planner" includeSource="true" type="InstallableUnit">
+<!-- <location includeAllPlatforms="false" includeConfigurePhase="false" includeMode="planner" includeSource="true" type="InstallableUnit">
 <unit id="org.franca.core.sdk.feature.group" version="0.13.1.201807231814"/>
 <unit id="org.franca.providers.sdk.feature.group" version="0.13.1.201807231814"/>
 <unit id="org.franca.ui.sdk.feature.group" version="0.13.1.201807231814"/>
 <repository location="http://franca.github.io/franca/update_site/releases"/>
+</location> -->
+
+<location includeAllPlatforms="false" includeConfigurePhase="false" includeMode="planner" includeSource="true" type="InstallableUnit">
+<unit id="org.franca.core.sdk.feature.group" version="0.13.2.202512212242"/>
+<unit id="org.franca.providers.sdk.feature.group" version="0.13.2.202512212242"/>
+<unit id="org.franca.ui.sdk.feature.group" version="0.13.2.202512212242"/>
+<repository location="file:/home/kramadan/Desktop/cb865_franca-master/releng/org.franca.updatesite/target/repository"/>
 </location>
+
 <location includeAllPlatforms="false" includeConfigurePhase="false" includeMode="planner" includeSource="true" type="InstallableUnit">
 <unit id="com.google.guava" version="30.1.0.v20210127-2300"/>
 <unit id="org.apache.commons.cli" version="1.4.0.v20200417-1444"/>

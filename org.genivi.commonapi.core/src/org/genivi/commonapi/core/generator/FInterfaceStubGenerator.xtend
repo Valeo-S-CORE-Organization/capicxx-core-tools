@@ -54,7 +54,9 @@ class FInterfaceStubGenerator {
 
         #include <functional>
         #include <sstream>
-
+        «IF fInterface.broadcasts.exists[b | isZeroCopy(b)]»
+            #include <string>
+        «ENDIF»
         «val generatedHeaders = new HashSet<String>»
         «val libraryHeaders = new HashSet<String>»
 
@@ -82,6 +84,22 @@ class FInterfaceStubGenerator {
 
         «endInternalCompilation»
 
+        «IF fInterface.broadcasts.exists[b | isZeroCopy(b)]»
+        // --- BEGIN ZERO-COPY API EXTENSION ---
+
+        namespace CommonAPI {
+
+        template<typename T>
+        using SampleAllocateePtr = std::unique_ptr<T, std::function<void(T*)>>;
+
+        template<typename T>
+        using SamplePtr = std::shared_ptr<const T>;
+
+        } // namespace CommonAPI
+
+        // --- END ZERO-COPY API EXTENSION ---
+        «ENDIF»
+
         «fInterface.generateVersionNamespaceBegin»
         «fInterface.model.generateNamespaceBeginDeclaration»
 
@@ -96,6 +114,16 @@ class FInterfaceStubGenerator {
               public virtual «fInterface.elementName»«IF fInterface.base !== null»,
               public virtual «fInterface.base.getTypeCollectionName(fInterface)»StubAdapter«ENDIF» {
          public:
+            «IF fInterface.broadcasts.exists[b | isZeroCopy(b)]»
+                /**
+                    * Sends a broadcast event for MyEvent. Should not be called directly.
+                    * Instead, the "fire<broadcastName>Event" methods of the stub should be used.
+                    */
+                    /**
+                    * Sends a zero-copy broadcast event for MyEvent. Should not be called directly.
+                    * Instead, the "fire<broadcastName>Event" methods of the stub should be used.
+                    */
+            «ENDIF»
             «FOR itsElement : fInterface.elements»
                 «IF itsElement instanceof FAttribute»
                     «IF itsElement.isObservable»
@@ -108,20 +136,44 @@ class FInterfaceStubGenerator {
                          * Sends a selective broadcast event for «itsElement.elementName». Should not be called directly.
                          * Instead, the "fire<broadcastName>Event" methods of the stub should be used.
                          */
-                        virtual void «itsElement.stubAdapterClassFireSelectiveMethodName»(«generateFireSelectiveSignatur(itsElement, fInterface)») = 0;
-                        virtual void «itsElement.stubAdapterClassSendSelectiveMethodName»(«generateSendSelectiveSignatur(itsElement, fInterface, true)») = 0;
-                        virtual void «itsElement.subscribeSelectiveMethodName»(const std::shared_ptr<CommonAPI::ClientId> _client, bool &_success) = 0;
-                        virtual void «itsElement.unsubscribeSelectiveMethodName»(const std::shared_ptr<CommonAPI::ClientId> _client) = 0;
-                        virtual std::shared_ptr<CommonAPI::ClientIdList> const «itsElement.stubAdapterClassSubscribersMethodName»() = 0;
-                    «ELSE»
-                        «IF (!itsElement.isErrorType(deploymentAccessor))»
-                            /**
-                            * Sends a broadcast event for «itsElement.elementName». Should not be called directly.
-                            * Instead, the "fire<broadcastName>Event" methods of the stub should be used.
-                            */
-                            virtual void «itsElement.stubAdapterClassFireEventMethodName»(«itsElement.outArgs.map['const ' + getTypeName(fInterface, true) + ' &_' + elementName].join(', ')») = 0;
+                        «IF fInterface.broadcasts.exists[b | isZeroCopy(b)]»
+
+                        «ELSE»
+                            virtual void «itsElement.stubAdapterClassFireSelectiveMethodName»(«generateFireSelectiveSignatur(itsElement, fInterface)») = 0;
+                            virtual void «itsElement.stubAdapterClassSendSelectiveMethodName»(«generateSendSelectiveSignatur(itsElement, fInterface, true)») = 0;
+                            virtual void «itsElement.subscribeSelectiveMethodName»(const std::shared_ptr<CommonAPI::ClientId> _client, bool &_success) = 0;
+                            virtual void «itsElement.unsubscribeSelectiveMethodName»(const std::shared_ptr<CommonAPI::ClientId> _client) = 0;
+                            virtual std::shared_ptr<CommonAPI::ClientIdList> const «itsElement.stubAdapterClassSubscribersMethodName»() = 0;
                         «ENDIF»
-                    «ENDIF»
+                    «ELSE»
+                        «IF fInterface.broadcasts.exists[b | isZeroCopy(b)]»
+
+                        «ELSE»
+                            «IF (!itsElement.isErrorType(deploymentAccessor))»
+                                /* Sends a selective broadcast event for «itsElement.elementName». Should not be called directly.
+                                * Instead, the "fire<broadcastName>Event" methods of the stub should be used.
+                                */
+                                virtual void «itsElement.stubAdapterClassFireSelectiveMethodName»(«generateFireSelectiveSignatur(itsElement, fInterface)») = 0;
+                                virtual void «itsElement.stubAdapterClassSendSelectiveMethodName»(«generateSendSelectiveSignatur(itsElement, fInterface, true)») = 0;
+                                virtual void «itsElement.subscribeSelectiveMethodName»(const std::shared_ptr<CommonAPI::ClientId> _client, bool &_success) = 0;
+                                virtual void «itsElement.unsubscribeSelectiveMethodName»(const std::shared_ptr<CommonAPI::ClientId> _client) = 0;
+                                virtual std::shared_ptr<CommonAPI::ClientIdList> const «itsElement.stubAdapterClassSubscribersMethodName»() = 0;
+                            
+                            «ELSE»
+                                «IF (!itsElement.isErrorType(deploymentAccessor))»
+                                    /**
+                                    * Sends a broadcast event for «itsElement.elementName». Should not be called directly.
+                                    * Instead, the "fire<broadcastName>Event" methods of the stub should be used.
+                                    */
+                                    virtual void «itsElement.stubAdapterClassFireEventMethodName»(«itsElement.outArgs.map['const ' + getTypeName(fInterface, true) + ' &_' + elementName].join(', ')») = 0;
+«IF isZeroCopy(itsElement)»
+    virtual CommonAPI::SampleAllocateePtr<«itsElement.outArgs.map[getTypeName(fInterface, true)].join(", ")»> allocate«itsElement.elementName.toFirstUpper»() = 0;
+    virtual void fire«itsElement.elementName.toFirstUpper»Event(CommonAPI::SampleAllocateePtr<«itsElement.outArgs.map[getTypeName(fInterface, true)].join(", ")»>&& _data) = 0;
+«ENDIF»
+                                «ENDIF»
+                                «ENDIF»
+                            «ENDIF»
+                        «ENDIF»
                 «ENDIF»
             «ENDFOR»
 
@@ -297,6 +349,21 @@ class FInterfaceStubGenerator {
                                     stubAdapter->«itsElement.stubAdapterClassFireEventMethodName»(«itsElement.outArgs.map["_" + elementName].join(', ')»);
                             }
                         «ENDIF»
+«IF isZeroCopy(itsElement)»
+                            /// Allocates a sample for a zero-copy broadcast of «itsElement.elementName».
+                            virtual CommonAPI::SampleAllocateePtr<«itsElement.outArgs.map[getTypeName(fInterface, true)].join(", ")»> allocate«itsElement.elementName.toFirstUpper»() {
+                                auto stubAdapter = «fInterface.stubCommonAPIClassName»::stubAdapter_.lock();
+                                if (stubAdapter)
+                                    return stubAdapter->allocate«itsElement.elementName.toFirstUpper»();
+                                return nullptr;
+                            }
+                            /// Sends a zero-copy broadcast event for «itsElement.elementName».
+                            virtual void fire«itsElement.elementName.toFirstUpper»Event(CommonAPI::SampleAllocateePtr<«itsElement.outArgs.map[getTypeName(fInterface, true)].join(", ")»>&& _data) {
+                                auto stubAdapter = «fInterface.stubCommonAPIClassName»::stubAdapter_.lock();
+                                if (stubAdapter)
+                                    stubAdapter->fire«itsElement.elementName.toFirstUpper»Event(std::move(_data));
+                            }
+                        «ENDIF»
                     «ENDIF»
                 «ENDIF»
             «ENDFOR»
@@ -433,6 +500,22 @@ class FInterfaceStubGenerator {
                   «ENDIF»
                   interfaceVersion_(«fInterface.elementName»::getInterfaceVersion()) {
             }
+
+            «IF fInterface.broadcasts.exists[b | isZeroCopy(b)]»
+                // --- BEGIN ZERO-COPY API EXTENSION ---
+                «FOR itsElement : fInterface.broadcasts»
+                    «IF isZeroCopy(itsElement)»
+                    COMMONAPI_EXPORT virtual CommonAPI::SampleAllocateePtr<«itsElement.outArgs.map[getTypeName(fInterface, true)].join(", ")»> allocate«itsElement.elementName.toFirstUpper»() override {
+                        return «fInterface.stubClassName»::allocate«itsElement.elementName.toFirstUpper»();
+                    }
+
+                    COMMONAPI_EXPORT virtual void fire«itsElement.elementName.toFirstUpper»Event(CommonAPI::SampleAllocateePtr<«itsElement.outArgs.map[getTypeName(fInterface, true)].join(", ")»>&& _data) override {
+                        «fInterface.stubClassName»::fire«itsElement.elementName.toFirstUpper»Event(std::move(_data));
+                    }
+                    «ENDIF»
+                «ENDFOR»
+                // --- END ZERO-COPY API EXTENSION ---
+            «ENDIF»
 
             COMMONAPI_EXPORT const CommonAPI::Version& getInterfaceVersion(std::shared_ptr<CommonAPI::ClientId> _client) {
                 (void)_client;

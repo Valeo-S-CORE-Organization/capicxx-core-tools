@@ -28,9 +28,11 @@ import org.eclipse.emf.common.util.EList
 import org.eclipse.emf.ecore.EObject
 import org.eclipse.emf.ecore.resource.Resource
 import org.eclipse.emf.ecore.util.EcoreUtil
+import org.eclipse.xtext.nodemodel.ICompositeNode
 import org.eclipse.xtext.nodemodel.util.NodeModelUtils
 import org.franca.core.franca.FArgument
 import org.franca.core.franca.FArrayType
+import org.franca.core.franca.FPtrType
 import org.franca.core.franca.FAttribute
 import org.franca.core.franca.FBasicTypeId
 import org.franca.core.franca.FBinaryOperation
@@ -136,6 +138,72 @@ class FrancaGeneratorExtensions {
         }
         return true
     }
+
+	/**
+	 * Checks if a broadcast is annotated with [@ZeroCopy].
+	 */
+	/**
+	 * Checks if a model element is annotated with [@ZeroCopy].
+	 * This is a generic method that can be used for any Franca element.
+	 */
+	def boolean isZeroCopy(FModelElement element) {
+		// Check raw text of the element's node, which is the most reliable method
+		val ICompositeNode node = NodeModelUtils.getNode(element);
+		if (node !== null) {
+			if (node.text.contains("[@ZeroCopy]")) {
+				return true;
+			}
+		}
+	
+		// Fallback to check the semantic comment model
+		if (element.comment !== null) {
+			for (annotation : element.comment.elements) {
+				if (annotation.type.getName().equalsIgnoreCase("ZeroCopy")) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+    def String getArraySize(FArrayType arrayType) {
+        val ICompositeNode node = NodeModelUtils.getNode(arrayType);
+        if (node !== null) {
+            val text = node.text;
+            val keyword = "@ArraySize";
+            val keywordIndex = text.indexOf(keyword);
+            if (keywordIndex != -1) {
+                val openParen = text.indexOf('(', keywordIndex);
+                if (openParen != -1) {
+                    val closeParen = text.indexOf(')', openParen);
+                    if (closeParen != -1) {
+                        var sizeStr = text.substring(openParen + 1, closeParen).trim();
+                        // remove quotes if present
+                        if (sizeStr.startsWith('"') && sizeStr.endsWith('"')) {
+                            sizeStr = sizeStr.substring(1, sizeStr.length() - 1);
+                        }
+                        if (isAllDigits(sizeStr)) {
+                            return sizeStr;
+                        }
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    private def boolean isAllDigits(String str) {
+        if (str === null || str.isEmpty()) {
+            return false;
+        }
+        for (c : str.toCharArray()) {
+            if (!Character.isDigit(c)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
 
     def String isSigned(String _typeName) {
         if (_typeName == "Int8" ||
@@ -295,7 +363,7 @@ class FrancaGeneratorExtensions {
             if (fModelElement.version !== null)
                 definePrefix = "V" + fModelElement.version.major.toString() + "_"
 
-        val defineSuffix = '_' + fModelElement.elementName.splitCamelCase.join('_')
+        val defineSuffix = "_" + fModelElement.elementName.splitCamelCase.join('_')
 
         if (fModelElement.eContainer instanceof FModelElement)
             return definePrefix + (fModelElement.eContainer as FModelElement).defineName + defineSuffix
@@ -743,7 +811,7 @@ class FrancaGeneratorExtensions {
     }
 
     private def generateDummyArgumentInitialization(FType type, FArgument list_element, FMethod fMethod) {
-        if ((type instanceof FArrayType) || (type instanceof FCompoundType)) {
+        if ((type instanceof FArrayType) || (type instanceof FCompoundType) || (type instanceof FPtrType)) {
             " = {}"
         } else if (type instanceof FEnumerationType) {
             if (type.enumerators.empty) {
@@ -996,6 +1064,11 @@ class FrancaGeneratorExtensions {
     def private dispatch String getDerivedMangledName(FArrayType fType) {
         "Ca" + fType.elementType.mangledName
     }
+
+    def private dispatch String getDerivedMangledName(FPtrType fType) {
+        "Cp" + fType.elementType.mangledName
+    }
+
 
     def private dispatch String getDerivedMangledName(FTypeDef fType) {
         fType.actualType.mangledName
@@ -1538,6 +1611,11 @@ class FrancaGeneratorExtensions {
             list.add(fType.elementType.derived)
     }
 
+    def private dispatch addFTypeDirectlyReferencedTypes(List<FType> list, FPtrType fType) {
+        if (fType.elementType.derived !== null)
+            list.add(fType.elementType.derived)
+    }
+
     def private dispatch addFTypeDirectlyReferencedTypes(List<FType> list, FUnionType fType) {
         list.addAll(fType.elements.filter[type.derived !== null].map[type.derived])
 
@@ -1599,6 +1677,11 @@ class FrancaGeneratorExtensions {
     def private dispatch void putFTypeObject(Hasher hasher, FArrayType fArrayType) {
         hasher.putString('FArrayType', Charsets::UTF_8)
         hasher.putFTypeRef(fArrayType.elementType)
+    }
+
+    def private dispatch void putFTypeObject(Hasher hasher, FPtrType fPtrType) {
+        hasher.putString('FPtrType', Charsets::UTF_8)
+        hasher.putFTypeRef(fPtrType.elementType)
     }
 
     def private dispatch void putFTypeObject(Hasher hasher, FUnionType fUnionType) {
@@ -1664,7 +1747,7 @@ class FrancaGeneratorExtensions {
         «var FVersion itsVersion = _tc.version»
         «IF itsVersion !== null && (itsVersion.major != 0 || itsVersion.minor != 0)»
         // Compatibility
-        namespace v«itsVersion.major.toString»_«itsVersion.minor.toString» = v«itsVersion.major.toString»;
+        namespace v«itsVersion.major.toString»_«itsVersion.minor.toString» = v«itsVersion.major.toString»; 
         «ENDIF»
     '''
 
@@ -2257,7 +2340,7 @@ class FrancaGeneratorExtensions {
         }
     }
     
-    def mergeDeployments(FDTypes _source, FDInterface _target) {
+def mergeDeployments(FDTypes _source, FDInterface _target) {
         mergeDeployments(_source.types, _target.types)
     }
 
@@ -2382,6 +2465,15 @@ class FrancaGeneratorExtensions {
         {
             fTypeReferences.add(fArrayType)
             fArrayType.elementType?.addDerivedFTypeTree(fTypeReferences)
+        }
+    }
+
+    def dispatch void addFTypeDerivedTree(FPtrType fPtrType, Collection<FType> fTypeReferences)
+    {
+        if(!fTypeReferences.contains(fPtrType))
+        {
+            fTypeReferences.add(fPtrType)
+            fPtrType.elementType?.addDerivedFTypeTree(fTypeReferences)
         }
     }
 

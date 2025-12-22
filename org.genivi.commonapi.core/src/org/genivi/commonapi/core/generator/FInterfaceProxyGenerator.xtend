@@ -48,6 +48,10 @@ class FInterfaceProxyGenerator {
             #include <«fInterface.base.proxyBaseHeaderPath»>
         «ENDIF»
 
+        «IF fInterface.broadcasts.exists[b | isZeroCopy(b)]»
+            #include <string>
+        «ENDIF»
+
         «val generatedHeaders = new HashSet<String>»
         «val libraryHeaders = new HashSet<String>»
         «fInterface.generateRequiredTypeIncludes(generatedHeaders, libraryHeaders, false)»
@@ -79,6 +83,22 @@ class FInterfaceProxyGenerator {
 
         «endInternalCompilation»
 
+        «IF fInterface.broadcasts.exists[b | isZeroCopy(b)]»
+        // --- BEGIN ZERO-COPY API EXTENSION ---
+
+        namespace CommonAPI {
+
+        template<typename T>
+        using SampleAllocateePtr = std::unique_ptr<T, std::function<void(T*)>>;
+
+
+        template<typename T>
+        using SamplePtr = std::shared_ptr<const T>;
+
+        } // namespace CommonAPI
+
+        // --- END ZERO-COPY API EXTENSION ---
+        «ENDIF»
         «fInterface.generateVersionNamespaceBegin»
         «fInterface.model.generateNamespaceBeginDeclaration»
 
@@ -90,9 +110,11 @@ class FInterfaceProxyGenerator {
                     «val itsAttribute = itsElement»
                     typedef CommonAPI::«itsAttribute.commonApiBaseClassname»<«itsAttribute.getTypeName(fInterface, true)»> «itsAttribute.className»;
                 «ELSEIF itsElement instanceof FBroadcast»
-                    typedef CommonAPI::Event<
-                        «itsElement.outArgs.map[getTypeName(fInterface, true)].join(', ')»
-                    > «itsElement.className»;
+                    «IF isZeroCopy(itsElement)»
+                        typedef CommonAPI::Event<CommonAPI::SamplePtr<«itsElement.outArgs.map[getTypeName(fInterface, true)].join(', ')»>> «itsElement.className»;
+                    «ELSE» 
+                        typedef CommonAPI::Event<«itsElement.outArgs.map[getTypeName(fInterface, true)].join(', ')»> «itsElement.className»;                  
+                    «ENDIF»
                 «ENDIF»
             «ENDFOR»
 
@@ -176,7 +198,6 @@ class FInterfaceProxyGenerator {
                     return(«fInterface.elementName»::getInterface());
                 }
             «ENDIF»
-
             /**
              * Returns the CommonAPI address of the remote partner this proxy communicates with.
              */

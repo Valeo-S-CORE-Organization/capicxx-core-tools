@@ -1,7 +1,7 @@
 /* Copyright (C) 2013-2020 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
-   This Source Code Form is subject to the terms of the Mozilla Public
-   License, v. 2.0. If a copy of the MPL was not distributed with this
-   file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 package org.genivi.commonapi.core.generator
 
 import java.util.Collection
@@ -14,6 +14,7 @@ import org.eclipse.emf.common.util.EList
 import org.franca.core.franca.FAnnotationBlock
 import org.franca.core.franca.FAnnotationType
 import org.franca.core.franca.FArrayType
+import org.franca.core.franca.FPtrType
 import org.franca.core.franca.FBasicTypeId
 import org.franca.core.franca.FEnumerationType
 import org.franca.core.franca.FField
@@ -157,11 +158,27 @@ class FTypeGenerator {
 
     def dispatch generateFTypeDeclaration(FArrayType fArrayType, PropertyAccessor deploymentAccessor) '''
         «generateComments(fArrayType, false)»
+    «val arraySize = fArrayType.getArraySize»
+    «val useStdArray = arraySize !== null»
+    «IF useStdArray»
+        «IF fArrayType.elementType.derived !== null && fArrayType.elementType.derived instanceof FStructType && (fArrayType.elementType.derived as FStructType).polymorphic»
+            typedef std::array<std::shared_ptr< «fArrayType.elementType.getElementType(fArrayType, true)»>, «arraySize» > «fArrayType.elementName»;
+        «ELSE»
+            typedef std::array< «fArrayType.elementType.getElementType(fArrayType, true)», «arraySize» > «fArrayType.elementName»;
+        «ENDIF»
+    «ELSE»
         «IF fArrayType.elementType.derived !== null && fArrayType.elementType.derived instanceof FStructType && (fArrayType.elementType.derived as FStructType).polymorphic»
             typedef std::vector<std::shared_ptr< «fArrayType.elementType.getElementType(fArrayType, true)»>> «fArrayType.elementName»;
         «ELSE»
             typedef std::vector< «fArrayType.elementType.getElementType(fArrayType, true)»> «fArrayType.elementName»;
         «ENDIF»
+    «ENDIF»
+    '''
+
+    // FIXED: Corrected syntax and logic for Pointer
+    def dispatch generateFTypeDeclaration(FPtrType fPtrType, PropertyAccessor deploymentAccessor) '''
+        «generateComments(fPtrType, false)»
+        typedef std::shared_ptr< «fPtrType.elementType.getElementType(fPtrType, true)» > «fPtrType.elementName»;
     '''
 
     def dispatch generateFTypeDeclaration(FMapType fMap, PropertyAccessor deploymentAccessor) '''
@@ -540,6 +557,7 @@ class FTypeGenerator {
 
     def dispatch generateFTypeInlineImplementation(FTypeDef fTypeDef, FModelElement parent, PropertyAccessor deploymentAccessor) ''''''
     def dispatch generateFTypeInlineImplementation(FArrayType fArrayType, FModelElement parent, PropertyAccessor deploymentAccessor) ''''''
+    def dispatch generateFTypeInlineImplementation(FPtrType fPtrType, FModelElement parent, PropertyAccessor deploymentAccessor) ''''''
     def dispatch generateFTypeInlineImplementation(FMapType fMap, FModelElement parent, PropertyAccessor deploymentAccessor) ''''''
 
     def dispatch generateFTypeInlineImplementation(FStructType fStructType, FModelElement parent, PropertyAccessor deploymentAccessor) '''
@@ -552,6 +570,7 @@ class FTypeGenerator {
 
     def dispatch generateFTypeImplementation(FTypeDef fTypeDef, FModelElement parent, PropertyAccessor _accessor) ''''''
     def dispatch generateFTypeImplementation(FArrayType fArrayType, FModelElement parent, PropertyAccessor _accessor) ''''''
+    def dispatch generateFTypeImplementation(FPtrType fPtrType, FModelElement parent, PropertyAccessor _accessor) ''''''
     def dispatch generateFTypeImplementation(FMapType fMap, FModelElement parent, PropertyAccessor _accessor) ''''''
     def dispatch generateFTypeImplementation(FEnumerationType _enumeration, FModelElement _parent, PropertyAccessor _accessor) '''
     '''
@@ -641,9 +660,20 @@ class FTypeGenerator {
         fTypeDef.actualType.getRequiredHeaderPath(generatedHeaders, libraryHeaders)
     }
     def private dispatch void addFTypeRequiredHeaders(FArrayType fArrayType, Collection<String> generatedHeaders, Collection<String> libraryHeaders) {
-        libraryHeaders.add('vector')
+    	if (fArrayType.getArraySize !== null) {
+        	libraryHeaders.add('array')
+    	} else {
+        	libraryHeaders.add('vector')
+    	}
         fArrayType.elementType.getRequiredHeaderPath(generatedHeaders, libraryHeaders)
     }
+    
+    // FIXED: Added missing dispatch for Pointers (this caused your crash)
+    def private dispatch void addFTypeRequiredHeaders(FPtrType fPtrType, Collection<String> generatedHeaders, Collection<String> libraryHeaders) {
+        libraryHeaders.add('memory') // required for std::shared_ptr
+        fPtrType.elementType.getRequiredHeaderPath(generatedHeaders, libraryHeaders)
+    }
+
     def private dispatch void addFTypeRequiredHeaders(FMapType fMapType, Collection<String> generatedHeaders, Collection<String> libraryHeaders) {
         libraryHeaders.add('unordered_map')
         fMapType.keyType.getRequiredHeaderPath(generatedHeaders, libraryHeaders)
