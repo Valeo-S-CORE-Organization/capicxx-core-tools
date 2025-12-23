@@ -11,7 +11,7 @@
 if [ "$#" -ne 2 ]; then
     echo "Error: Invalid number of arguments."
     echo "Usage: $0 <FULL_PATH_TO_REPO> <VERSION>"
-    echo "Example: $0 /home/kramadan/Desktop/cb865_franca-master/... 0.13.2.202512212242"
+    echo "Example: $0 /home/username/Desktop/cb865_franca-master/... 0.13.2.202512212242"
     exit 1
 fi
 

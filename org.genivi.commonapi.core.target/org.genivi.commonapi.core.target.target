@@ -40,13 +40,6 @@
 <repository location="https://download.eclipse.org/tools/orbit/downloads/2022-03"/>
 </location> -->
 
-<location includeAllPlatforms="false" includeConfigurePhase="false" includeMode="planner" includeSource="true" type="InstallableUnit">
-<unit id="org.franca.core.sdk.feature.group" version="0.13.2.202512212242"/>
-<unit id="org.franca.providers.sdk.feature.group" version="0.13.2.202512212242"/>
-<unit id="org.franca.ui.sdk.feature.group" version="0.13.2.202512212242"/>
-<repository location="file:/home/kramadan/franca/releng/org.franca.updatesite/target/repository"/>
-</location>
-
 </locations>
 <targetJRE path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.8"/>
 </target>
