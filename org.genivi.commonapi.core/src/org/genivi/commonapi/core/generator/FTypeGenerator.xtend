@@ -668,9 +668,8 @@ class FTypeGenerator {
         fArrayType.elementType.getRequiredHeaderPath(generatedHeaders, libraryHeaders)
     }
     
-    // FIXED: Added missing dispatch for Pointers (this caused your crash)
     def private dispatch void addFTypeRequiredHeaders(FPtrType fPtrType, Collection<String> generatedHeaders, Collection<String> libraryHeaders) {
-        libraryHeaders.add('CommonApI/ShareableBuffer.hpp') // required for std::shared_ptr
+        libraryHeaders.add('CommonAPI/ShareableBuffer.hpp') // required for std::shared_ptr
         fPtrType.elementType.getRequiredHeaderPath(generatedHeaders, libraryHeaders)
     }
 
