@@ -139,33 +139,6 @@ class FrancaGeneratorExtensions {
         return true
     }
 
-	/**
-	 * Checks if a broadcast is annotated with [@ZeroCopy].
-	 */
-	/**
-	 * Checks if a model element is annotated with [@ZeroCopy].
-	 * This is a generic method that can be used for any Franca element.
-	 */
-	def boolean isZeroCopy(FModelElement element) {
-		// Check raw text of the element's node, which is the most reliable method
-		val ICompositeNode node = NodeModelUtils.getNode(element);
-		if (node !== null) {
-			if (node.text.contains("[@ZeroCopy]")) {
-				return true;
-			}
-		}
-	
-		// Fallback to check the semantic comment model
-		if (element.comment !== null) {
-			for (annotation : element.comment.elements) {
-				if (annotation.type.getName().equalsIgnoreCase("ZeroCopy")) {
-					return true;
-				}
-			}
-		}
-		return false;
-	}
-
     def String getArraySize(FArrayType arrayType) {
         val ICompositeNode node = NodeModelUtils.getNode(arrayType);
         if (node !== null) {

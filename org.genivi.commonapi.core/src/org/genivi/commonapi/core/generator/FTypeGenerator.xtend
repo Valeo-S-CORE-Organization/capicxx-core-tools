@@ -178,7 +178,7 @@ class FTypeGenerator {
     // FIXED: Corrected syntax and logic for Pointer
     def dispatch generateFTypeDeclaration(FPtrType fPtrType, PropertyAccessor deploymentAccessor) '''
         «generateComments(fPtrType, false)»
-        typedef std::shared_ptr< «fPtrType.elementType.getElementType(fPtrType, true)» > «fPtrType.elementName»;
+        typedef CommonAPI::ShareableBuffer< «fPtrType.elementType.getElementType(fPtrType, true)» > «fPtrType.elementName»;
     '''
 
     def dispatch generateFTypeDeclaration(FMapType fMap, PropertyAccessor deploymentAccessor) '''
@@ -670,7 +670,7 @@ class FTypeGenerator {
     
     // FIXED: Added missing dispatch for Pointers (this caused your crash)
     def private dispatch void addFTypeRequiredHeaders(FPtrType fPtrType, Collection<String> generatedHeaders, Collection<String> libraryHeaders) {
-        libraryHeaders.add('memory') // required for std::shared_ptr
+        libraryHeaders.add('CommonApI/ShareableBuffer.hpp') // required for std::shared_ptr
         fPtrType.elementType.getRequiredHeaderPath(generatedHeaders, libraryHeaders)
     }
 
