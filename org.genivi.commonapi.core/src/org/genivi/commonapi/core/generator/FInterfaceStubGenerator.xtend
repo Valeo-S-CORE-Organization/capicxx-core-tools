@@ -54,6 +54,7 @@ class FInterfaceStubGenerator {
 
         #include <functional>
         #include <sstream>
+
         «val generatedHeaders = new HashSet<String>»
         «val libraryHeaders = new HashSet<String>»
 
@@ -81,7 +82,6 @@ class FInterfaceStubGenerator {
 
         «endInternalCompilation»
 
-
         «fInterface.generateVersionNamespaceBegin»
         «fInterface.model.generateNamespaceBeginDeclaration»
 
@@ -108,30 +108,18 @@ class FInterfaceStubGenerator {
                          * Sends a selective broadcast event for «itsElement.elementName». Should not be called directly.
                          * Instead, the "fire<broadcastName>Event" methods of the stub should be used.
                          */
+                        virtual void «itsElement.stubAdapterClassFireSelectiveMethodName»(«generateFireSelectiveSignatur(itsElement, fInterface)») = 0;
                         virtual void «itsElement.stubAdapterClassSendSelectiveMethodName»(«generateSendSelectiveSignatur(itsElement, fInterface, true)») = 0;
                         virtual void «itsElement.subscribeSelectiveMethodName»(const std::shared_ptr<CommonAPI::ClientId> _client, bool &_success) = 0;
                         virtual void «itsElement.unsubscribeSelectiveMethodName»(const std::shared_ptr<CommonAPI::ClientId> _client) = 0;
                         virtual std::shared_ptr<CommonAPI::ClientIdList> const «itsElement.stubAdapterClassSubscribersMethodName»() = 0;
-                        virtual void «itsElement.stubAdapterClassFireSelectiveMethodName»(«generateFireSelectiveSignatur(itsElement, fInterface)») = 0;
                     «ELSE»
                         «IF (!itsElement.isErrorType(deploymentAccessor))»
-                            /* Sends a selective broadcast event for «itsElement.elementName». Should not be called directly.
+                            /**
+                            * Sends a broadcast event for «itsElement.elementName». Should not be called directly.
                             * Instead, the "fire<broadcastName>Event" methods of the stub should be used.
                             */
-                            virtual void «itsElement.stubAdapterClassFireSelectiveMethodName»(«generateFireSelectiveSignatur(itsElement, fInterface)») = 0;
-                            virtual void «itsElement.stubAdapterClassSendSelectiveMethodName»(«generateSendSelectiveSignatur(itsElement, fInterface, true)») = 0;
-                            virtual void «itsElement.subscribeSelectiveMethodName»(const std::shared_ptr<CommonAPI::ClientId> _client, bool &_success) = 0;
-                            virtual void «itsElement.unsubscribeSelectiveMethodName»(const std::shared_ptr<CommonAPI::ClientId> _client) = 0;
-                            virtual std::shared_ptr<CommonAPI::ClientIdList> const «itsElement.stubAdapterClassSubscribersMethodName»() = 0;
-                            
-                        «ELSE»
-                            «IF (!itsElement.isErrorType(deploymentAccessor))»
-                                /**
-                                * Sends a broadcast event for «itsElement.elementName». Should not be called directly.
-                                * Instead, the "fire<broadcastName>Event" methods of the stub should be used.
-                                */
-                                virtual void «itsElement.stubAdapterClassFireEventMethodName»(«itsElement.outArgs.map['const ' + getTypeName(fInterface, true) + ' &_' + elementName].join(', ')») = 0;
-                            «ENDIF»
+                            virtual void «itsElement.stubAdapterClassFireEventMethodName»(«itsElement.outArgs.map['const ' + getTypeName(fInterface, true) + ' &_' + elementName].join(', ')») = 0;
                         «ENDIF»
                     «ENDIF»
                 «ENDIF»
@@ -445,7 +433,6 @@ class FInterfaceStubGenerator {
                   «ENDIF»
                   interfaceVersion_(«fInterface.elementName»::getInterfaceVersion()) {
             }
-
 
             COMMONAPI_EXPORT const CommonAPI::Version& getInterfaceVersion(std::shared_ptr<CommonAPI::ClientId> _client) {
                 (void)_client;
